@@ -1,5 +1,5 @@
-#Version: 1.1.0
-#Date: 11.11.2023
+#Version: 1.2.0
+#Date: 12.11.2023
 #Author: Sowtyy
 
 
@@ -21,12 +21,37 @@ def getWordDefinition(word : str, wordDict : dict[str, str]):
   return wordDict[word]["definition"]
 
 def wordIsPlural(word : str, wordDict : dict[str, str]):
-  if "мн. " in getWordDefinition(word, wordDict):
-    return True
-  return False
+  return (True if "мн. " in getWordDefinition(word, wordDict) else False)
+
+def wordIsDiminutive(word : str, wordDict : dict[str, str]):
+  return (True if "Уменьш. " in getWordDefinition(word, wordDict) else False)
+
+def wordIsAffectionate(word : str, wordDict : dict[str, str]):
+  return (True if "Ласк. " in getWordDefinition(word, wordDict) else False)
+
+def wordIsPejorative(word : str, wordDict : dict[str, str]):
+  return (True if "Уничиж. " in getWordDefinition(word, wordDict) else False)
+
+def wordIsSameAs(word : str, wordDict : dict[str, str]):
+  return (True if "То же, что: " in getWordDefinition(word, wordDict) else False)
+
+def wordIsFeminineSameAs(word : str, wordDict : dict[str, str]):
+  return (True if "Женск. к : " in getWordDefinition(word, wordDict) else False)
+
+def getAvailableWords(*, searchChar : str, usedWords : list[str], wordDict : dict[str, str]):
+  availableWords = [word for word in wordDict
+                    if word.startswith(searchChar)
+                    and word not in usedWords
+                    and not wordIsPlural(word, wordDict)
+                    and not wordIsDiminutive(word, wordDict)
+                    and not wordIsAffectionate(word, wordDict)
+                    and not wordIsPejorative(word, wordDict)
+                    and not wordIsFeminineSameAs(word, wordDict)]
+  
+  return availableWords
 
 def getWordSearchChar(word : str):
-  charIgnoreList = ["ь"]
+  charIgnoreList = ["ь", "ы"]
   char = ""
   reverseCharIndex = 0
 
@@ -60,7 +85,7 @@ def main():
       if not lastWord:
         print("Ни одно слово ещё не было написано.")
         continue
-      print(f"Значение слова {lastWord}: {getWordDefinition(lastWord, wordDict)}")
+      print(f"Значение слова {upperFirstChar(lastWord)}: {getWordDefinition(lastWord, wordDict)}")
       continue
     if wordSearchChar and wordInput[0] != wordSearchChar:
       print(f"Слово {wordInput} не начинается на букву {wordSearchChar.upper()}!")
@@ -73,16 +98,13 @@ def main():
     wordSearchChar = getWordSearchChar(wordInput)
     #lastWord = wordInput
 
-    wordsStartingWithChar = [word for word in wordDict
-                             if word.startswith(wordSearchChar)
-                             and word not in usedWords
-                             and not wordIsPlural(word, wordDict)]
+    availableWords = getAvailableWords(searchChar = wordSearchChar, usedWords = usedWords, wordDict = wordDict)
 
-    if not wordsStartingWithChar:
+    if not availableWords:
       print("Вы выйграли! Каким-то образом...")
       break
 
-    newWord = random.choice(wordsStartingWithChar)
+    newWord = random.choice(availableWords)
 
     print(f"{upperFirstChar(newWord)}.")
 

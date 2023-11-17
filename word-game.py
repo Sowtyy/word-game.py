@@ -1,5 +1,5 @@
-#Version: 1.2.0
-#Date: 12.11.2023
+#Version: 1.3.0
+#Date: 18.11.2023
 #Author: Sowtyy
 
 
@@ -7,48 +7,35 @@ import json
 import random
 
 
-WORD_DICT_PATH = "./russian_nouns_with_definition.json"
+WORDS_PATH = "./russian-nouns.json"
+COMMAND_PREFIX = "!"
 
 
 def readJson(path : str):
   with open(path, "r", encoding = "utf-8") as file:
     return json.load(file)
 
-def upperFirstChar(text : str):
-  return f"{text[0].upper()}{text[1:]}"
+def upperFirstCharLowerElse(text : str):
+  return f"{text[0].upper()}{text[1:].lower()}"
 
-def getWordDefinition(word : str, wordDict : dict[str, str]):
-  return wordDict[word]["definition"]
+def getAvailableWords(*, searchChar : str, usedWords : list[str], words : list[dict[str, list[str] | str | int | bool]]):
+  availableWords : list[str] = []
 
-def wordIsPlural(word : str, wordDict : dict[str, str]):
-  return (True if "мн. " in getWordDefinition(word, wordDict) else False)
-
-def wordIsDiminutive(word : str, wordDict : dict[str, str]):
-  return (True if "Уменьш. " in getWordDefinition(word, wordDict) else False)
-
-def wordIsAffectionate(word : str, wordDict : dict[str, str]):
-  return (True if "Ласк. " in getWordDefinition(word, wordDict) else False)
-
-def wordIsPejorative(word : str, wordDict : dict[str, str]):
-  return (True if "Уничиж. " in getWordDefinition(word, wordDict) else False)
-
-def wordIsSameAs(word : str, wordDict : dict[str, str]):
-  return (True if "То же, что: " in getWordDefinition(word, wordDict) else False)
-
-def wordIsFeminineSameAs(word : str, wordDict : dict[str, str]):
-  return (True if "Женск. к : " in getWordDefinition(word, wordDict) else False)
-
-def getAvailableWords(*, searchChar : str, usedWords : list[str], wordDict : dict[str, str]):
-  availableWords = [word for word in wordDict
-                    if word.startswith(searchChar)
-                    and word not in usedWords
-                    and not wordIsPlural(word, wordDict)
-                    and not wordIsDiminutive(word, wordDict)
-                    and not wordIsAffectionate(word, wordDict)
-                    and not wordIsPejorative(word, wordDict)
-                    and not wordIsFeminineSameAs(word, wordDict)]
+  for wordDict in words:
+    word = wordDict["bare"]
+    
+    if word.startswith(searchChar) and word not in usedWords:
+      availableWords.append(word)
   
   return availableWords
+
+def getAvailableWord(*, searchChar : str, usedWords : list[str], words : list[dict[str, list[str] | str | int | bool]]):
+  availableWords = getAvailableWords(searchChar = searchChar, usedWords = usedWords, words = words)
+  
+  if not availableWords:
+    return ""
+  
+  return random.choice(availableWords)
 
 def getWordSearchChar(word : str):
   charIgnoreList = ["ь", "ы"]
@@ -73,40 +60,53 @@ def askInput(text = ""):
   return inp
 
 def main():
-  wordDict : dict[str, str] = readJson(WORD_DICT_PATH)
-  usedWords = []
+  words : list[dict[str, list[str] | str | int | bool]] = readJson(WORDS_PATH)
+  usedWords : list[str] = []
   wordSearchChar = ""
   lastWord = ""
+
+  print(f"""
+        Команды:
+        {COMMAND_PREFIX}п - Подставить слово и пропустить ход.
+        {COMMAND_PREFIX}с - Статистика.
+        """)
 
   while True:
     wordInput = askInput(f"Ваша очередь. Напишите слово начинающееся на {wordSearchChar.upper() if wordSearchChar else 'любую букву'}: ").lower()
 
-    if wordInput == "!з":
-      if not lastWord:
-        print("Ни одно слово ещё не было написано.")
+    if wordInput.startswith(COMMAND_PREFIX):
+      command = wordInput[len(COMMAND_PREFIX):]
+      if command == "п": # подставить слово
+        wordInput = getAvailableWord(searchChar = wordSearchChar, usedWords = usedWords, words = words)
+        if not wordInput:
+          print("Я больше не знаю подходящих слов... Похоже вы выйграли!")
+          break
+        print(f"Подставил за вас слово {upperFirstCharLowerElse(wordInput)}.")
+      elif command == "с":
+        print(f"Всего использовано слов: {len(usedWords)}.")
         continue
-      print(f"Значение слова {upperFirstChar(lastWord)}: {getWordDefinition(lastWord, wordDict)}")
-      continue
+      else:
+        print("Такой команды не существует.")
+        continue
+
     if wordSearchChar and wordInput[0] != wordSearchChar:
-      print(f"Слово {wordInput} не начинается на букву {wordSearchChar.upper()}!")
+      print(f"Слово {upperFirstCharLowerElse(wordInput)} не начинается на букву {wordSearchChar.upper()}!")
       continue
     if wordInput in usedWords:
-      print(f"Слово {upperFirstChar(wordInput)} уже использовалось, напишите другое.")
+      print(f"Слово {upperFirstCharLowerElse(wordInput)} уже использовалось, напишите другое.")
       continue
 
     usedWords.append(wordInput)
     wordSearchChar = getWordSearchChar(wordInput)
     #lastWord = wordInput
 
-    availableWords = getAvailableWords(searchChar = wordSearchChar, usedWords = usedWords, wordDict = wordDict)
+    newWord = getAvailableWord(searchChar = wordSearchChar, usedWords = usedWords, words = words)
 
-    if not availableWords:
-      print("Вы выйграли! Каким-то образом...")
+    if not newWord:
+      print("Я больше не знаю подходящих слов... Похоже вы выйграли!")
       break
 
-    newWord = random.choice(availableWords)
-
-    print(f"{upperFirstChar(newWord)}.")
+    print(f"{upperFirstCharLowerElse(newWord)}.")
 
     usedWords.append(newWord)
     wordSearchChar = getWordSearchChar(newWord)
